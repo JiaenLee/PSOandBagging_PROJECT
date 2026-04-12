@@ -289,6 +289,11 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
 
     # 保存模型至文件
     output_path = os.path.join(path["model_path"], f"{dataset_name}_models.pkl")
+    # 確保 model 輸出資料夾存在
+    model_folder = os.path.dirname(output_path)
+    if model_folder and not os.path.exists(model_folder):
+        os.makedirs(model_folder, exist_ok=True)
+
     with open(output_path, 'wb') as f:
         pickle.dump(fold_models, f)
 
@@ -352,16 +357,31 @@ if __name__ == "__main__":
     df_res_path = path["data_filter_result_path"]
 
     # 建立 csv 檔案，用以儲存 PSO_TRENB 的 training 和 test 準確率
+    # 確保 log_file 的父資料夾存在
+    log_folder = os.path.dirname(path["log_file"])
+    if log_folder and not os.path.exists(log_folder):
+        os.makedirs(log_folder, exist_ok=True)
+
     with open(path["log_file"], mode='w', encoding='utf-8', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Dataset", "Training_Accuracy", "Test_Accuracy", "Time"])
     
     # 建儲存資料過濾筆數與比例
+    # 確保 df_res_path 的父資料夾存在
+    df_folder = os.path.dirname(df_res_path)
+    if df_folder and not os.path.exists(df_folder):
+        os.makedirs(df_folder, exist_ok=True)
+
     with open(df_res_path, mode='w', encoding='utf-8', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Dataset", "avg filtered count", "avg filtered rate"])
 
     # 建立儲存集成挑選後的模型索引，以及集成挑選後的測試集正確率
+    # 確保 es_result_path 的父資料夾存在
+    es_folder = os.path.dirname(path["es_result_path"])
+    if es_folder and not os.path.exists(es_folder):
+        os.makedirs(es_folder, exist_ok=True)
+
     with open(path["es_result_path"], mode='w', encoding='utf-8', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Dataset"] + ["fold"] + [str(i+1) for i in range(25)] + ["Obj"] + ["Test Accuracy"])
