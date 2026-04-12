@@ -211,6 +211,11 @@ def cross_validation_with_ensemble(file_path, target_column, model_config, datas
 
     # 保存模型至文件
     output_path = os.path.join(path["model_path"], f"{dataset_name}_models.pkl")
+    # 確保 model 檔案的父資料夾存在
+    model_folder = os.path.dirname(output_path)
+    if model_folder and not os.path.exists(model_folder):
+        os.makedirs(model_folder, exist_ok=True)
+
     with open(output_path, 'wb') as f:
         pickle.dump(fold_models, f)
 
