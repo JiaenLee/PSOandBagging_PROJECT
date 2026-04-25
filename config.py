@@ -47,6 +47,8 @@ PATH = {
         "model_path": os.path.join(MODEL_DIR, "PSO_TRENB"),
         # 集成挑選後的模型索引，以及集成挑選後的測試集正確率儲存路徑
         "es_result_path": os.path.join(ES_RESULT_DIR, "PSO_TRENB.csv"),
+        # 專門存每一折前 25 名的正確率
+        "selected_training_accuracy_path": "training_accuracies/Selected_PSO_TRENB.json",
     },
     "Bagging":{
         # 實驗結果儲存路徑
