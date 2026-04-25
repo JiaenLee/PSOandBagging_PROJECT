@@ -347,13 +347,6 @@ if __name__ == "__main__":
     pso_config = config.PSO_CONFIG
     path = config.PATH.get("PSO_TRENB")
     
-    # 處理多類別資料
-    data_folder = "datasets/離散化資料集/多類別" # 使用離散化後的資料
-    dataset_list = [
-        f.replace(".csv", "")
-        for f in os.listdir(data_folder)
-        if f.endswith(".csv")
-    ]
     df_res_path = path["data_filter_result_path"]
 
     # 建立 csv 檔案，用以儲存 PSO_TRENB 的 training 和 test 準確率
@@ -385,23 +378,35 @@ if __name__ == "__main__":
     with open(path["es_result_path"], mode='w', encoding='utf-8', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Dataset"] + ["fold"] + [str(i+1) for i in range(25)] + ["Obj"] + ["Test Accuracy"])
+    
+    
+    folders_to_process = [
+        "datasets/離散化資料集/二類別",
+        "datasets/離散化資料集/多類別"
+    ]
+    for data_folder in folders_to_process:
+        dataset_list = [
+            f.replace(".csv", "")
+            for f in os.listdir(data_folder)
+            if f.endswith(".csv")
+        ]
+        
+        for filename in dataset_list: # 處理每個資料集
+            print(f"處理資料集: {filename}")
+            file_path = os.path.join(data_folder,filename + '.csv')
+            target_column = "class"    # 類別欄位設為'class'
 
-    for filename in dataset_list: # 處理每個資料集
-        print(f"處理資料集: {filename}")
-        file_path = os.path.join(data_folder,filename + '.csv')
-        target_column = "class"    # 類別欄位設為'class'
+            # 進行 PSO_TRENB 訓練，得到五折交叉驗證後的訓練集
+            training_accuracy, test_accuracy, exec_time  = cv_with_ensemble_selection(file_path, target_column, model_config, pso_config, filename)
+                
+            # 將兩個準確率 寫入 csv（使用 append 模式，避免被覆蓋）
+            with open(path["log_file"], mode='a', encoding='utf-8', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow([filename, training_accuracy, test_accuracy, exec_time] )
+                
+                parent_path = Path.cwd()
+                data_filter_var_path = os.path.join(parent_path, "data_filter_var.xlsx")
 
-        # 進行 PSO_TRENB 訓練，得到五折交叉驗證後的訓練集
-        training_accuracy, test_accuracy, exec_time  = cv_with_ensemble_selection(file_path, target_column, model_config, pso_config, filename)
-            
-        # 將兩個準確率 寫入 csv（使用 append 模式，避免被覆蓋）
-        with open(path["log_file"], mode='a', encoding='utf-8', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow([filename, training_accuracy, test_accuracy, exec_time] )
-            
-            parent_path = Path.cwd()
-            data_filter_var_path = os.path.join(parent_path, "data_filter_var.xlsx")
-
-            # 檢查資料過濾正確性，寫過濾結果
-            check_data_filter.check_filtering_result(data_filter_var_path, model_config, filename, df_res_path)
+                # 檢查資料過濾正確性，寫過濾結果
+                check_data_filter.check_filtering_result(data_filter_var_path, model_config, filename, df_res_path)
 
