@@ -3,12 +3,12 @@ import os
 
 # 1. 設定路徑
 folder_name = "模型分析"
-log_csv_path = "accuracy_result/PSO_TRENB.csv" 
+log_csv_path = "../accuracy_result/PSO_TRENB.csv" 
 output_excel_path = os.path.join(folder_name, "PSO_運行時間分析.xlsx")
 
 # 資料來源資料夾 (用來判斷分類)
-binary_dir = "datasets/離散化資料集/二類別"
-multi_dir = "datasets/離散化資料集/多類別"
+binary_dir = "../datasets/離散化資料集/二類別"
+multi_dir = "../datasets/離散化資料集/多類別"
 
 # 2. 確保「模型分析」資料夾存在
 if not os.path.exists(folder_name):
