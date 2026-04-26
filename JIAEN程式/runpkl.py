@@ -4,7 +4,7 @@ import pickle
 import numpy as np
 
 # 1. 載入數據
-with open('temp_models/PSO_TRENB/Abalone_3class_models.pkl', 'rb') as f:
+with open('../temp_models/PSO_TRENB/Abalone_3class_models.pkl', 'rb') as f:
     data = pickle.load(f)
 
 # 2. 檢查第一層：有哪些折數 (Folds)
@@ -15,7 +15,7 @@ fold1_models = data['fold_2']['PSO_TRENB']
 print(f"Fold 2 中的模型數量: {len(fold1_models)}") # 預期輸出: 25
 
 # 4. 檢查第一個基本模型的參數 (Prior 和 Likelihood)
-first_model = fold1_models[0]
+first_model = fold1_models[0] 
 prior, likelihood = first_model
 
 print("\n--- 第一個模型的先驗機率 (Prior) ---")
