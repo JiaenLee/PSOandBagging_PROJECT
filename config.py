@@ -5,7 +5,7 @@ import numpy as np
 # 1. ---模型參數設定 ---
 MODEL_CONFIG = {
     'k_folds': 5,                  # K 折交叉驗證
-    'num_base_models': 50,         # 基本模型總數
+    'num_base_models': 25,         # 基本模型總數
     'selection_model_nums': 25,    # 最後挑選的模型數
     'time_limit_per_fold': 600     # 每個 fold 的最大求解時間（秒），超過則停止並輸出當前最佳解
 }
@@ -47,8 +47,6 @@ PATH = {
         "model_path": os.path.join(MODEL_DIR, "PSO_TRENB"),
         # 集成挑選後的模型索引，以及集成挑選後的測試集正確率儲存路徑
         "es_result_path": os.path.join(ES_RESULT_DIR, "PSO_TRENB.csv"),
-        # 專門存每一折前 25 名的正確率
-        "selected_training_accuracy_path": "training_accuracies/Selected_PSO_TRENB.json",
     },
     "Bagging":{
         # 實驗結果儲存路徑

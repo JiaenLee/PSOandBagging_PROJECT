@@ -212,7 +212,6 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
     kf = KFold(n_splits = k, shuffle = True, random_state = 42) 
     training_accuracies = []    # 儲存每個 fold 基本模型對 training set 的預測準確率，這是存全部的 (5折 * 50個 = 250個)
     test_accuracies = []        # 儲存每個 fold 集成模型對 test set 的預測準確率
-    selected_accuracies_list = []  # 專門存挑選後的 (5折 * 25個 = 125個)
     data_filter_table = {f"fold_{fold + 1}": [] for fold in range(k)}  # 儲存每個基本模型對每個訓練樣本的預測向量
 
     X_reserved = {f"fold_{fold + 1}": [] for fold in range(k)}  # 儲存資料過濾結果
@@ -229,7 +228,6 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
         # fold_data 儲存模型資訊
         fold_data = {}
         pso_models = []  # 記錄訓練出的模型(每一折（Fold）產生的 25 個模型都是全新的，而不是拿舊的模型去更新)
-        fold_all_accuracies = [] # 暫存這一折所有的 50 個正確率
         
         # 每個基本模型對測試集樣本的預測
         model_test_predictions = np.zeros((len(y_test), num_base_models), dtype=int)    # 單一折數中基本模型的預測結果，(樣本數, 模型數)
@@ -255,17 +253,12 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
                 
                 acc = np.mean(pred_class == y_train)
                 training_accuracies.append(acc)  # 一個 fold 裡的一個基本模型的訓練集準確率
-                fold_all_accuracies.append(acc)    # 存入本折暫存表
                 
                 # 測試集預測
                 pred_vector, pred_class = predict(X_test, prior, likelihood)
                 model_test_predictions[:,nums] = pred_class  # 基本模型 i 對所有測試樣本的預測結果
                 nums += 1
                 pbar.update(1)
-        
-        fold_all_accuracies.sort(reverse=True) # 從大到小排序
-        top_25_accs = fold_all_accuracies[:selection_model_nums] # 取前 25 名
-        selected_accuracies_list.extend(top_25_accs) # 存入精銳名單
 
         fold_data["PSO_TRENB"] = pso_models  # 記錄所有 PSO 基本模型資訊
 
@@ -294,7 +287,6 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
     write_json_data(path["training_accuracy_path"], dataset_name, training_accuracies)  # 將五折交叉驗證中的訓練集樣本預測正確率寫入
     write_json_data(path["training_pred_vector_path"], dataset_name, data_filter_table)  # 將五折交叉驗證中的訓練集樣本預測向量寫入
     write_json_data(path["data_filter_reserved_path"] , dataset_name, X_reserved) 
-    write_json_data(path["selected_training_accuracy_path"], dataset_name, selected_accuracies_list)
     # 保存模型至文件
     output_path = os.path.join(path["model_path"], f"{dataset_name}_models.pkl")
     # 確保 model 輸出資料夾存在

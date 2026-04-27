@@ -6,7 +6,7 @@ import os
 folder_name = "模型分析"
 output_filename = "PSO_模型正確率分析.xlsx"
 output_path = os.path.join(folder_name, output_filename)
-json_file_path = '../training_accuracies/Selected_PSO_TRENB.json'
+json_file_path = '../training_accuracies/PSO_TRENB.json'
 
 # 資料來源資料夾 (用來判斷分類)
 binary_dir = "../datasets/離散化資料集/二類別"
