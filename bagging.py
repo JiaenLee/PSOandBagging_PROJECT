@@ -37,6 +37,8 @@ def naive_bayes_classifier(df_train, attributes, class_nums):
             內容：該類別下，該特徵值出現了幾次。
         '''
         nij = df_train.groupby([att, 'class']).size().unstack(fill_value=0)  # p(xi | cj)
+        # 補上這行：強制補齊所有類別欄位 (0 到 class_nums-1)，確保結構完整不缺漏
+        nij = nij.reindex(columns=np.arange(class_nums), fill_value=0)
         #P(Xi​∣Cj​)=(出現次數+1​)/(該類別總數+該特徵總值數)
         p_Xi_Cj_dict[att] = (nij + 1) / (nj + att_value_counts[att])  # Laplace estimator (拉普拉斯平滑)
     # p_Xi_Cj_dict 的格式為 {特徵名稱: 儲存特徵類別組合機率的 DataFrame}
@@ -109,8 +111,12 @@ def cross_validation_with_ensemble(file_path, target_column, model_config, datas
     data = pd.read_csv(file_path)
     attributes = data.columns[:-1]  # 特徵名稱集合
     X = data.drop(columns = [target_column]).values
-    y = data[target_column].values
-    class_nums = len(np.unique(y))  # 計算類別數量
+    y_raw = data[target_column].values  # 取得原始標籤
+
+    # === 對類別標籤 y 做 LabelEncoder，解決索引問題 ===
+    le_y = LabelEncoder()
+    y = le_y.fit_transform(y_raw)
+    class_nums = len(le_y.classes_)
 
    # 對 X 別做 LabelEncode，防止空箱問題產生
     for i in range(X.shape[1]): # 針對每個特徵
@@ -238,11 +244,11 @@ def write_json_data(path, dataset_name, content):
             json.dump({}, f)
 
     # ===== 3️⃣ 讀取 JSON（避免空檔壞掉）=====
-    try:
-        with open(path, "r", encoding="utf-8") as r:
+    with open(path, "r", encoding="utf-8") as r:
+        try:
             json_data = json.load(r)
-    except (json.JSONDecodeError, FileNotFoundError):
-        json_data = {}
+        except json.JSONDecodeError:
+            json_data = {}
 
     # ===== 4️⃣ 更新內容 =====
     json_data[dataset_name] = content
@@ -274,39 +280,60 @@ if __name__ == "__main__":
     pso_config = config.PSO_CONFIG
     path = config.PATH.get("Bagging")
     
-    # 處理多類別資料
-    data_folder = "datasets/離散化資料集/多類別" # 使用離散化後的資料
-    dataset_list = [
-        f.replace(".csv", "")
-        for f in os.listdir(data_folder)
-        if f.endswith(".csv")
-    ]
     df_res_path = path["data_filter_result_path"]
-
-    # 建儲存資料過濾筆數與比例
+    log_folder = os.path.dirname(path["log_file"])
+    if log_folder and not os.path.exists(log_folder):
+        os.makedirs(log_folder, exist_ok=True)  # 👈 自動防呆建立資料夾
+    # 建立儲存資料過濾筆數與比例的標頭
     with open(df_res_path, mode='w', encoding='utf-8', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Dataset", "avg filtered count", "avg filtered rate"])
 
-    # 建立 csv 檔案，用以儲存 PSO_TRENB 的 training 和 test 準確率
+    # 建立 csv 檔案，用以儲存 Bagging 的 training 和 test 準確率標頭
     with open(path["log_file"], mode='w', encoding='utf-8', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Dataset", "Training_Accuracy", "Test_Accuracy", "Time"])
 
-    for filename in dataset_list: # 處理每個資料集
-        print(f"處理資料集: {filename}")
-        file_path = os.path.join(data_folder,filename + '.csv')
-        target_column = "class"    # 類別欄位設為'class'
+    # ====== 修改重點：定義要跑的兩個資料夾列表 ======
+    data_folders = [
+        "datasets/離散化資料集/二類別",
+        "datasets/離散化資料集/多類別"
+    ]
+    start_from_dataset = "Glass"  # 設定從 Glass 開始跑
+    found_start = False          # 標記是否已經找到起點
 
-        # 進行 TRENB 訓練，得到五折交叉驗證後的訓練集、測試集準確率
-        training_accuracy, test_accuracy, exec_time = cross_validation_with_ensemble(file_path, target_column, model_config, filename)
+    # 使用外層迴圈依序讀取兩個資料夾
+    for data_folder in data_folders:
+        print(f"\n================ 正在掃描資料夾: {data_folder} ================")
+        
+        # 取得該資料夾底下的所有資料集名稱
+        dataset_list = [
+            f.replace(".csv", "")
+            for f in os.listdir(data_folder)
+            if f.endswith(".csv")
+        ]
 
-        # 將兩個準確率 寫入 csv（使用 append 模式，避免被覆蓋）
-        with open(path["log_file"], mode='a', encoding='utf-8', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow([filename, training_accuracy, test_accuracy, exec_time] )
-            
-            parent_path = Path.cwd()
-            data_filter_var_path = os.path.join(parent_path, "data_filter_var.xlsx")
+        for filename in dataset_list: # 處理每個資料集
+            # 如果還沒找到起點，就檢查目前檔名
+            if not found_start:
+                if filename == start_from_dataset:
+                    found_start = True # 找到了，設定為 True
+                else:
+                    print(f"跳過資料集: {filename}")
+                    continue # 跳過，進入下一個迴圈
+            print(f"處理資料集: {filename}")
+            file_path = os.path.join(data_folder, filename + '.csv')
+            target_column = "class"    # 類別欄位設為'class'
 
-            check_data_filter.check_filtering_result(data_filter_var_path, model_config, filename, df_res_path)
+            # 進行 TRENB 訓練，得到五折交叉驗證後的訓練集、測試集準確率
+            training_accuracy, test_accuracy, exec_time = cross_validation_with_ensemble(file_path, target_column, model_config, filename)
+
+            # 將兩個準確率 寫入 csv（使用 append 模式，避免被覆蓋）
+            with open(path["log_file"], mode='a', encoding='utf-8', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow([filename, training_accuracy, test_accuracy, exec_time])
+                
+                parent_path = Path.cwd()
+                data_filter_var_path = os.path.join(parent_path, "data_filter_var.xlsx")
+
+                check_data_filter.check_filtering_result(data_filter_var_path, model_config, filename, df_res_path)

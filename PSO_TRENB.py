@@ -194,16 +194,24 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
 
     # 載入資料，並區分特徵與類別
     data = pd.read_csv(file_path)
-    X = data.drop(columns = [target_column]).values
-    y = data[target_column].values
-    class_nums = len(np.unique(y))  # 計算類別數量
+    X_raw = data.drop(columns = [target_column]).values
+    y_raw = data[target_column].values # 取得原始標籤
+    
+    # === 對類別標籤 y 做 LabelEncoder，解決索引跳號問題 ===
+    le_y = LabelEncoder()
+    y = le_y.fit_transform(y_raw)
+    class_nums = len(le_y.classes_)
+
+    # ===============================
+    
+    X = np.zeros(X_raw.shape, dtype=int) 
     feature_value_counts = []
 
     # 對 X 做 LabelEncode，防止空箱問題產生
-    for i in range(X.shape[1]): # 針對每個特徵
+    for i in range(X_raw.shape[1]):
         le = LabelEncoder()
-        X[:, i] = le.fit_transform(X[:, i]) 
-        # 記錄每個特徵的可能值數量，le.classes_ 會取出 label 的數量
+        # 將轉換後的結果存入 int 陣列 X
+        X[:, i] = le.fit_transform(X_raw[:, i]) 
         feature_value_counts.append(len(le.classes_))
     
     start_time = time.time()  # 計時開始
@@ -249,7 +257,7 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
                 except Exception as e:
                     error_detail = traceback.format_exc()
                     tqdm.write(f"[WARN] PSO failed for fold {fold + 1} model {nums + 1}: {error_detail}")
-                    return None, None
+                    return None, None, None 
                 
                 acc = np.mean(pred_class == y_train)
                 training_accuracies.append(acc)  # 一個 fold 裡的一個基本模型的訓練集準確率
@@ -384,6 +392,10 @@ if __name__ == "__main__":
         "datasets/離散化資料集/二類別",
         "datasets/離散化資料集/多類別"
     ]
+
+    start_from_dataset = "Modeling" 
+    found_start = False # 標記是否已經找到起點
+
     for data_folder in folders_to_process:
         dataset_list = [
             f.replace(".csv", "")
@@ -392,6 +404,14 @@ if __name__ == "__main__":
         ]
         
         for filename in dataset_list: # 處理每個資料集
+            # 如果還沒找到起點，就檢查目前檔名
+            if not found_start:
+                if filename == start_from_dataset:
+                    found_start = True # 找到了，設定為 True
+                else:
+                    print(f"跳過資料集: {filename}")
+                    continue # 跳過，進入下一個迴圈
+            
             print(f"處理資料集: {filename}")
             file_path = os.path.join(data_folder,filename + '.csv')
             target_column = "class"    # 類別欄位設為'class'
