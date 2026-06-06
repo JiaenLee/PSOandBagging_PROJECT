@@ -6,11 +6,11 @@ import os
 folder_name = "模型分析"
 output_filename = "Bagging_模型正確率分析.xlsx"  # 修改輸出檔名
 output_path = os.path.join(folder_name, output_filename)
-json_file_path = '../training_accuracies/Bagging_TRENB.json'  # 修改為 Bagging 的 JSON 路徑
+json_file_path = 'training_accuracies/Bagging.json'
 
-# 資料來源資料夾 (用來判斷分類)
-binary_dir = "../datasets/離散化資料集/二類別"
-multi_dir = "../datasets/離散化資料集/多類別"
+# 資料來源資料夾（用來判斷分類）
+binary_dir = "datasets/離散化資料集/二類別"
+multi_dir = "datasets/離散化資料集/多類別"
 
 # 2. 檢查並建立「模型分析」資料夾
 if not os.path.exists(folder_name):

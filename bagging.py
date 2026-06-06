@@ -289,18 +289,22 @@ if __name__ == "__main__":
         writer = csv.writer(csvfile)
         writer.writerow(["Dataset", "avg filtered count", "avg filtered rate"])
 
-    # 建立 csv 檔案，用以儲存 Bagging 的 training 和 test 準確率標頭
-    with open(path["log_file"], mode='w', encoding='utf-8', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(["Dataset", "Training_Accuracy", "Test_Accuracy", "Time"])
+    #  修改後的寫法：檔案不存在才建立標頭，存在的話就裝作沒事，絕對不清空舊資料！
+    if not os.path.exists(path["log_file"]):
+        with open(path["log_file"], mode='w', encoding='utf-8', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["Dataset", "Training_Accuracy", "Test_Accuracy", "Time"])
 
-    # ====== 修改重點：定義要跑的兩個資料夾列表 ======
+    # ====== 🎯 修改重點 1：資料夾掃描順序 ======
     data_folders = [
-        "datasets/離散化資料集/二類別",
-        "datasets/離散化資料集/多類別"
+        "datasets/離散化資料集/二類別",  # 先掃描二類別
+        "datasets/離散化資料集/多類別"   # 再掃描多類別
     ]
-    start_from_dataset = "Glass"  # 設定從 Glass 開始跑
-    found_start = False          # 標記是否已經找到起點
+    
+    # ====== 🎯 修改重點 2：控制變數調整 ======
+    # 移除原本的 start_from_dataset = "Glass"
+    # 新增結束控制標記：我們要跑到多類別的 Ecoli
+    stop_at_dataset = "Ecoli"
 
     # 使用外層迴圈依序讀取兩個資料夾
     for data_folder in data_folders:
@@ -314,13 +318,6 @@ if __name__ == "__main__":
         ]
 
         for filename in dataset_list: # 處理每個資料集
-            # 如果還沒找到起點，就檢查目前檔名
-            if not found_start:
-                if filename == start_from_dataset:
-                    found_start = True # 找到了，設定為 True
-                else:
-                    print(f"跳過資料集: {filename}")
-                    continue # 跳過，進入下一個迴圈
             print(f"處理資料集: {filename}")
             file_path = os.path.join(data_folder, filename + '.csv')
             target_column = "class"    # 類別欄位設為'class'
@@ -337,3 +334,9 @@ if __name__ == "__main__":
                 data_filter_var_path = os.path.join(parent_path, "data_filter_var.xlsx")
 
                 check_data_filter.check_filtering_result(data_filter_var_path, model_config, filename, df_res_path)
+
+            # 🎯 關鍵補上這段：如果剛剛跑完的正是 Ecoli，就立刻安全終止程式！
+            if filename == stop_at_dataset:
+                import sys  # 如果開頭沒 import sys，記得在這裡補上
+                print(f"\n🎉 偵測到已完成目標終點 [{stop_at_dataset}]！程式安全結束。")
+                sys.exit(0)

@@ -1,14 +1,14 @@
 import pandas as pd
 import os
 
-# 1. 設定路徑 (已修改為 Bagging 相關名稱)
+# 1. 設定路徑（已校正為相對於專案根目錄的正確路徑）
 folder_name = "模型分析"
-log_csv_path = "../accuracy_result/Bagging_TRENB.csv" # 修改輸入的 CSV 檔名
-output_excel_path = os.path.join(folder_name, "Bagging_運行時間分析.xlsx") # 修改輸出的 Excel 檔名
+log_csv_path = "accuracy_result/Bagging.csv" 
+output_excel_path = os.path.join(folder_name, "Bagging_運行時間分析.xlsx")
 
-# 資料來源資料夾 (用來判斷分類)
-binary_dir = "../datasets/離散化資料集/二類別"
-multi_dir = "../datasets/離散化資料集/多類別"
+# 正確的資料來源資料夾路徑
+binary_dir = "datasets/離散化資料集/二類別"
+multi_dir = "datasets/離散化資料集/多類別"
 
 # 2. 確保「模型分析」資料夾存在
 if not os.path.exists(folder_name):

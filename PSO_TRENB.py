@@ -393,7 +393,7 @@ if __name__ == "__main__":
         "datasets/離散化資料集/多類別"
     ]
 
-    start_from_dataset = "Modeling" 
+    start_from_dataset = "Algerian" 
     found_start = False # 標記是否已經找到起點
 
     for data_folder in folders_to_process:
