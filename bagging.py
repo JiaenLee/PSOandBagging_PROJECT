@@ -283,44 +283,40 @@ if __name__ == "__main__":
     df_res_path = path["data_filter_result_path"]
     log_folder = os.path.dirname(path["log_file"])
     if log_folder and not os.path.exists(log_folder):
-        os.makedirs(log_folder, exist_ok=True)  # 👈 自動防呆建立資料夾
+        os.makedirs(log_folder, exist_ok=True)  # 自動防呆建立資料夾
+
     # 建立儲存資料過濾筆數與比例的標頭
     with open(df_res_path, mode='w', encoding='utf-8', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Dataset", "avg filtered count", "avg filtered rate"])
 
-    #  修改後的寫法：檔案不存在才建立標頭，存在的話就裝作沒事，絕對不清空舊資料！
+    # 檔案不存在才建立標頭，存在的話就裝作沒事，絕對不清空舊資料！
     if not os.path.exists(path["log_file"]):
         with open(path["log_file"], mode='w', encoding='utf-8', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["Dataset", "Training_Accuracy", "Test_Accuracy", "Time"])
 
-    # ====== 🎯 修改重點 1：資料夾掃描順序 ======
+    # ====== 🎯 掃描順序：先二類別，再多類別 ======
     data_folders = [
-        "datasets/離散化資料集/二類別",  # 先掃描二類別
-        "datasets/離散化資料集/多類別"   # 再掃描多類別
+        "datasets/離散化資料集/二類別",  
+        "datasets/離散化資料集/多類別"   
     ]
     
-    # ====== 🎯 修改重點 2：控制變數調整 ======
-    # 移除原本的 start_from_dataset = "Glass"
-    # 新增結束控制標記：我們要跑到多類別的 Ecoli
-    stop_at_dataset = "Ecoli"
-
     # 使用外層迴圈依序讀取兩個資料夾
     for data_folder in data_folders:
         print(f"\n================ 正在掃描資料夾: {data_folder} ================")
         
-        # 取得該資料夾底下的所有資料集名稱
-        dataset_list = [
+        # ====== 🎯 加上 sorted() 確保該資料夾內的檔案從 A-Z 依序排列 ======
+        dataset_list = sorted([
             f.replace(".csv", "")
             for f in os.listdir(data_folder)
             if f.endswith(".csv")
-        ]
+        ])
 
         for filename in dataset_list: # 處理每個資料集
             print(f"處理資料集: {filename}")
             file_path = os.path.join(data_folder, filename + '.csv')
-            target_column = "class"    # 類別欄位設為'class'
+            target_column = "class"    # 類別欄位設為 'class'
 
             # 進行 TRENB 訓練，得到五折交叉驗證後的訓練集、測試集準確率
             training_accuracy, test_accuracy, exec_time = cross_validation_with_ensemble(file_path, target_column, model_config, filename)
@@ -335,8 +331,4 @@ if __name__ == "__main__":
 
                 check_data_filter.check_filtering_result(data_filter_var_path, model_config, filename, df_res_path)
 
-            # 🎯 關鍵補上這段：如果剛剛跑完的正是 Ecoli，就立刻安全終止程式！
-            if filename == stop_at_dataset:
-                import sys  # 如果開頭沒 import sys，記得在這裡補上
-                print(f"\n🎉 偵測到已完成目標終點 [{stop_at_dataset}]！程式安全結束。")
-                sys.exit(0)
+    print("\n🎉 所有資料夾內的所有資料集已全部執行完畢！")

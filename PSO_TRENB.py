@@ -397,12 +397,13 @@ if __name__ == "__main__":
     found_start = False # 標記是否已經找到起點
 
     for data_folder in folders_to_process:
-        dataset_list = [
+         # ====== 🎯 加上 sorted() 確保該資料夾內的檔案從 A-Z 依序排列 ======
+        dataset_list = sorted([
             f.replace(".csv", "")
             for f in os.listdir(data_folder)
             if f.endswith(".csv")
-        ]
-        
+        ])
+
         for filename in dataset_list: # 處理每個資料集
             # 如果還沒找到起點，就檢查目前檔名
             if not found_start:
