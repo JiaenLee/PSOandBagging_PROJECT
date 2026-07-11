@@ -257,7 +257,7 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
                 except Exception as e:
                     error_detail = traceback.format_exc()
                     tqdm.write(f"[WARN] PSO failed for fold {fold + 1} model {nums + 1}: {error_detail}")
-                    return None, None, None 
+                    return None, None, None, None 
                 
                 acc = np.mean(pred_class == y_train)
                 training_accuracies.append(acc)  # 一個 fold 裡的一個基本模型的訓練集準確率
@@ -307,7 +307,7 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
 
     print(f"模型已保存至 {output_path}")
 
-    return np.mean(training_accuracies), np.mean(test_accuracies), exec_time
+    return np.mean(training_accuracies), np.mean(test_accuracies), exec_time,test_accuracies
 
 # 寫入 json 檔案，並壓縮內層
 def write_json_data(path, dataset_name, content):
@@ -350,6 +350,7 @@ def write_json_data(path, dataset_name, content):
         f.write(json_str)
 
 if __name__ == "__main__":
+
     random.seed(42)
     model_config = config.MODEL_CONFIG
     pso_config = config.PSO_CONFIG
@@ -362,6 +363,15 @@ if __name__ == "__main__":
     log_folder = os.path.dirname(path["log_file"])
     if log_folder and not os.path.exists(log_folder):
         os.makedirs(log_folder, exist_ok=True)
+
+    # 建立一個新的 CSV 檔案路徑
+    fold_test_acc_csv = os.path.join(os.path.dirname(path["log_file"]), "PSO_fold_testing_accuracies.csv")
+
+    # 初始化檔案：如果存在就清空，寫入標題列
+    with open(fold_test_acc_csv, mode='w', encoding='utf-8', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        # 標題：資料集名稱, Fold1, Fold2, Fold3, Fold4, Fold5
+        writer.writerow(["Dataset", "Fold_1", "Fold_2", "Fold_3", "Fold_4", "Fold_5"])
 
     with open(path["log_file"], mode='w', encoding='utf-8', newline='') as csvfile:
         writer = csv.writer(csvfile)
@@ -418,13 +428,19 @@ if __name__ == "__main__":
             target_column = "class"    # 類別欄位設為'class'
 
             # 進行 PSO_TRENB 訓練，得到五折交叉驗證後的訓練集
-            training_accuracy, test_accuracy, exec_time  = cv_with_ensemble_selection(file_path, target_column, model_config, pso_config, filename)
-                
+            res = cv_with_ensemble_selection(file_path, target_column, model_config, pso_config, filename)
+            training_accuracy, test_accuracy, exec_time, fold_test_list = res
+
             # 將兩個準確率 寫入 csv（使用 append 模式，避免被覆蓋）
             with open(path["log_file"], mode='a', encoding='utf-8', newline='') as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow([filename, training_accuracy, test_accuracy, exec_time] )
-                
+            
+            with open(fold_test_acc_csv, mode='a', encoding='utf-8', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                # fold_test_list 本身就是 [acc1, acc2, acc3, acc4, acc5]
+                writer.writerow([filename] + fold_test_list)
+
                 parent_path = Path.cwd()
                 data_filter_var_path = os.path.join(parent_path, "data_filter_var.xlsx")
 
