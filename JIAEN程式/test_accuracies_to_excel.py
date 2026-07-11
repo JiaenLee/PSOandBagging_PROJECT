@@ -25,7 +25,7 @@ def csv_to_vertical_xlsx(input_csv, output_xlsx):
     df_vertical = df_vertical.sort_values(by=['Dataset', 'Fold_Index'])
 
     # 4. 只保留「資料集」與「正確率」兩欄 (去掉 Fold_Index)
-    df_final = df_vertical[['Dataset', '正確率']]
+    df_final = df_vertical[['Dataset', 'Testing正確率']]
 
     # 5. 存成 Excel 檔 (需要 openpyxl 套件)
     df_final.to_excel(output_xlsx, index=False)
