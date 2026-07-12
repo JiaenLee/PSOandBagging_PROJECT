@@ -35,7 +35,7 @@ if __name__ == "__main__":
     # 使用 ../ 代表回到上一層資料夾，再進入 accuracy_result
     input_file = "../accuracy_result/PSO_fold_testing_accuracies.csv" 
     
-    # 輸出檔案：因為你現在就在 JIAEN程式 資料夾裡，直接寫子資料夾名稱即可
-    output_file = "模型分析/PSO_fold_testing_vertical.xlsx" 
+    # 輸出檔案：因為現在就在 JIAEN程式 資料夾裡，直接寫子資料夾名稱即可
+    output_file = "模型分析/PSO_fold_testing_accuracies.xlsx" 
 
     csv_to_vertical_xlsx(input_file, output_file)

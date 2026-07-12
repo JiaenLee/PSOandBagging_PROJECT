@@ -227,8 +227,7 @@ def cross_validation_with_ensemble(file_path, target_column, model_config, datas
 
     print(f"模型已保存至 {output_path}")
 
-    return np.mean(training_accuracies), np.mean(test_accuracies), exec_time
-
+    return np.mean(training_accuracies), np.mean(test_accuracies), exec_time, test_accuracies
 
 # 寫入 json 檔案，並壓縮內層
 def write_json_data(path, dataset_name, content):
@@ -284,7 +283,21 @@ if __name__ == "__main__":
     log_folder = os.path.dirname(path["log_file"])
     if log_folder and not os.path.exists(log_folder):
         os.makedirs(log_folder, exist_ok=True)  # 自動防呆建立資料夾
+    fold_test_acc_csv = os.path.join(
+    os.path.dirname(path["log_file"]),
+    "Bagging_fold_testing_accuracies.csv"
+)
 
+    if not os.path.exists(fold_test_acc_csv):
+        with open(fold_test_acc_csv, mode='w', encoding='utf-8', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["Dataset","Fold_1","Fold_2","Fold_3","Fold_4","Fold_5"])
+    
+    # 確保 df_res_path 的父資料夾存在
+    df_folder = os.path.dirname(df_res_path)
+    if df_folder and not os.path.exists(df_folder):
+        os.makedirs(df_folder, exist_ok=True)
+    
     # 建立儲存資料過濾筆數與比例的標頭
     with open(df_res_path, mode='w', encoding='utf-8', newline='') as csvfile:
         writer = csv.writer(csvfile)
@@ -319,13 +332,17 @@ if __name__ == "__main__":
             target_column = "class"    # 類別欄位設為 'class'
 
             # 進行 TRENB 訓練，得到五折交叉驗證後的訓練集、測試集準確率
-            training_accuracy, test_accuracy, exec_time = cross_validation_with_ensemble(file_path, target_column, model_config, filename)
+            training_accuracy, test_accuracy, exec_time, fold_test_list = cross_validation_with_ensemble(file_path, target_column, model_config, filename)
 
             # 將兩個準確率 寫入 csv（使用 append 模式，避免被覆蓋）
             with open(path["log_file"], mode='a', encoding='utf-8', newline='') as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow([filename, training_accuracy, test_accuracy, exec_time])
-                
+
+            with open(fold_test_acc_csv, mode='a', encoding='utf-8', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow([filename] + fold_test_list)
+
                 parent_path = Path.cwd()
                 data_filter_var_path = os.path.join(parent_path, "data_filter_var.xlsx")
 
