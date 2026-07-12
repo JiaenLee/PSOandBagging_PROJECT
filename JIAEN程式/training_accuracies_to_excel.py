@@ -4,7 +4,7 @@ import os
 
 # 1. 設定路徑
 folder_name = "模型分析"
-output_filename = "PSO_模型正確率分析.xlsx"
+output_filename = "PSO_training_accuracies分析.xlsx"
 output_path = os.path.join(folder_name, output_filename)
 json_file_path = '../training_accuracies/PSO_TRENB.json'
 
