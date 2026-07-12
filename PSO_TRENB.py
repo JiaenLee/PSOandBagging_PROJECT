@@ -217,6 +217,9 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
     start_time = time.time()  # 計時開始
 
     # 分割訓練與測試
+    # KFold:把一份原始資料，按照科學的方法公平地切分成「訓練用」和「考驗用」兩部分
+    # shuffle=True: 決定在切分資料之前，要不要先打亂資料的順序
+    # random_state=42: 打亂順序的隨機種子, 設為固定參數所以每次都一樣
     kf = KFold(n_splits = k, shuffle = True, random_state = 42) 
     training_accuracies = []    # 儲存每個 fold 基本模型對 training set 的預測準確率，這是存全部的 (5折 * 50個 = 250個)
     test_accuracies = []        # 儲存每個 fold 集成模型對 test set 的預測準確率
@@ -229,6 +232,9 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
     start_time = time.time()
 
     # 進行五折交叉驗證訓練
+    # kf.split(X) : 把整個資料矩陣 X 丟給了它, 一旦知道總數（假設是 1000），它就會在記憶體裡產生一組數字序列從 0 到 999。
+    # 接著根據你設定的 shuffle=True 和 random_state=42，把這 0~999 的數字順序打亂。
+    # 最後，它把這打亂後的 1000 個數字，按照 80/20 的比例分配給每一折的 train_index 和 test_index
     for fold, (train_index, test_index) in enumerate(kf.split(X)):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
