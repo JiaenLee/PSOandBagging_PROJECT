@@ -21,7 +21,7 @@ def build_category_map(project_dir):
 
 def csv_to_vertical_xlsx(input_csv, output_xlsx, category_map):
     """
-    讀取橫向 5-Fold CSV，旋轉為縱向後存為 XLSX，並加入類別類型欄位。
+    讀取橫向 5-Fold CSV，逐列轉成縱向 5 行，並加入類別類型欄位。
     """
     if not os.path.exists(input_csv):
         print(f"找不到檔案: {input_csv}")
@@ -30,24 +30,21 @@ def csv_to_vertical_xlsx(input_csv, output_xlsx, category_map):
     # 1. 讀取 CSV
     df = pd.read_csv(input_csv)
 
-    # 2. 使用 melt 功能將 Fold_1~Fold_5 轉為縱向 (正確率一欄)
-    df_vertical = df.melt(
-        id_vars=["Dataset"],
-        value_vars=["Fold_1", "Fold_2", "Fold_3", "Fold_4", "Fold_5"],
-        var_name="Fold_Index",
-        value_name="正確率"
-    )
+    rows = []
+    for _, row in df.iterrows():
+        dataset_name = row["Dataset"]
+        category_type = category_map.get(dataset_name, "未知")
 
-    # 3. 加入類別類型欄位
-    df_vertical["類別類型"] = df_vertical["Dataset"].map(category_map).fillna("未知")
+        for fold_idx in range(1, 6):
+            rows.append({
+                "類別類型": category_type,
+                "資料集名稱": dataset_name,
+                "testing正確率": row[f"Fold_{fold_idx}"],
+            })
 
-    # 4. 重新命名欄位，讓格式與 training_accuracies 輸出一致
-    df_vertical = df_vertical.rename(columns={"Dataset": "資料集名稱"})
+    df_final = pd.DataFrame(rows)
 
-    # 6. 只保留統一欄位順序
-    df_final = df_vertical[["類別類型", "資料集名稱", "正確率"]]
-
-    # 7. 存成 Excel 檔 (需要 openpyxl 套件)
+    # 2. 存成 Excel 檔 (需要 openpyxl 套件)
     os.makedirs(os.path.dirname(output_xlsx), exist_ok=True)
     df_final.to_excel(output_xlsx, index=False)
     print(f"Excel 轉換完成！檔案路徑: {output_xlsx}")
