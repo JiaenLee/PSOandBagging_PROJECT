@@ -354,7 +354,6 @@ def write_json_data(path, dataset_name, content):
     # ====== 6️⃣ 寫回檔案 ======
     with open(path, "w", encoding="utf-8") as f:
         f.write(json_str)
-
 if __name__ == "__main__":
 
     random.seed(42)
@@ -365,7 +364,6 @@ if __name__ == "__main__":
     df_res_path = path["data_filter_result_path"]
 
     # 建立 csv 檔案，用以儲存 PSO_TRENB 的 training 和 test 準確率
-    # 確保 log_file 的父資料夾存在
     log_folder = os.path.dirname(path["log_file"])
     if log_folder and not os.path.exists(log_folder):
         os.makedirs(log_folder, exist_ok=True)
@@ -373,18 +371,16 @@ if __name__ == "__main__":
     # 建立一個新的 CSV 檔案路徑
     fold_test_acc_csv = os.path.join(os.path.dirname(path["log_file"]), "PSO_fold_testing_accuracies.csv")
 
-    # 初始化檔案：如果存在就清空，寫入標題列
+    # 初始化檔案：寫入標題列
     with open(fold_test_acc_csv, mode='w', encoding='utf-8', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        # 標題：資料集名稱, Fold1, Fold2, Fold3, Fold4, Fold5
         writer.writerow(["Dataset", "Fold_1", "Fold_2", "Fold_3", "Fold_4", "Fold_5"])
 
     with open(path["log_file"], mode='w', encoding='utf-8', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Dataset", "Training_Accuracy", "Test_Accuracy", "Time"])
     
-    # 建儲存資料過濾筆數與比例
-    # 確保 df_res_path 的父資料夾存在
+    # 確保資料過濾結果路徑存在
     df_folder = os.path.dirname(df_res_path)
     if df_folder and not os.path.exists(df_folder):
         os.makedirs(df_folder, exist_ok=True)
@@ -393,8 +389,7 @@ if __name__ == "__main__":
         writer = csv.writer(csvfile)
         writer.writerow(["Dataset", "avg filtered count", "avg filtered rate"])
 
-    # 建立儲存集成挑選後的模型索引，以及集成挑選後的測試集正確率
-    # 確保 es_result_path 的父資料夾存在
+    # 確保 ES 結果路徑存在
     es_folder = os.path.dirname(path["es_result_path"])
     if es_folder and not os.path.exists(es_folder):
         os.makedirs(es_folder, exist_ok=True)
@@ -403,53 +398,59 @@ if __name__ == "__main__":
         writer = csv.writer(csvfile)
         writer.writerow(["Dataset"] + ["fold"] + [str(i+1) for i in range(25)] + ["Obj"] + ["Test Accuracy"])
     
-    
     folders_to_process = [
         "datasets/離散化資料集/二類別",
         "datasets/離散化資料集/多類別"
     ]
 
     start_from_dataset = "Algerian" 
-    found_start = False # 標記是否已經找到起點
+    found_start = False 
 
     for data_folder in folders_to_process:
-         # ====== 🎯 加上 sorted() 確保該資料夾內的檔案從 A-Z 依序排列 ======
+        # ====== 取得資料夾名稱做為標籤 (例如：二類別、多類別) ======
+        folder_label = os.path.basename(data_folder)
+
         dataset_list = sorted([
             f.replace(".csv", "")
             for f in os.listdir(data_folder)
             if f.endswith(".csv")
         ])
 
-        for filename in dataset_list: # 處理每個資料集
-            # 如果還沒找到起點，就檢查目前檔名
+        for filename in dataset_list:
+            # 檢查起點 (依舊根據原始檔名判斷)
             if not found_start:
                 if filename == start_from_dataset:
-                    found_start = True # 找到了，設定為 True
+                    found_start = True
                 else:
                     print(f"跳過資料集: {filename}")
-                    continue # 跳過，進入下一個迴圈
+                    continue
             
-            print(f"處理資料集: {filename}")
-            file_path = os.path.join(data_folder,filename + '.csv')
-            target_column = "class"    # 類別欄位設為'class'
+            # ====== 建立唯一的資料集名稱 ======
+            unique_name = f"{folder_label}_{filename}"
+            
+            print(f"處理資料集: {unique_name}")
+            file_path = os.path.join(data_folder, filename + '.csv')
+            target_column = "class"
 
-            # 進行 PSO_TRENB 訓練，得到五折交叉驗證後的訓練集
-            res = cv_with_ensemble_selection(file_path, target_column, model_config, pso_config, filename)
+            # 進行 PSO_TRENB 訓練，傳入 unique_name
+            res = cv_with_ensemble_selection(file_path, target_column, model_config, pso_config, unique_name)
+            
+            if res[0] is None: # 處理 PSO 失敗的情況
+                print(f"資料集 {unique_name} 訓練失敗，跳過。")
+                continue
+
             training_accuracy, test_accuracy, exec_time, fold_test_list = res
 
-            # 將兩個準確率 寫入 csv（使用 append 模式，避免被覆蓋）
+            # 將結果寫入 CSV，使用 unique_name 區分
             with open(path["log_file"], mode='a', encoding='utf-8', newline='') as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow([filename, training_accuracy, test_accuracy, exec_time] )
+                writer.writerow([unique_name, training_accuracy, test_accuracy, exec_time])
             
             with open(fold_test_acc_csv, mode='a', encoding='utf-8', newline='') as csvfile:
                 writer = csv.writer(csvfile)
-                # fold_test_list 本身就是 [acc1, acc2, acc3, acc4, acc5]
-                writer.writerow([filename] + fold_test_list)
+                writer.writerow([unique_name] + fold_test_list)
 
-                parent_path = Path.cwd()
-                data_filter_var_path = os.path.join(parent_path, "data_filter_var.xlsx")
-
-                # 檢查資料過濾正確性，寫過濾結果
-                check_data_filter.check_filtering_result(data_filter_var_path, model_config, filename, df_res_path)
-
+            # 檢查資料過濾正確性 (這部分 check_filtering_result 內部會用到 unique_name 作為 key 讀取 json)
+            parent_path = Path.cwd()
+            data_filter_var_path = os.path.join(parent_path, "data_filter_var.xlsx")
+            check_data_filter.check_filtering_result(data_filter_var_path, model_config, unique_name, df_res_path)

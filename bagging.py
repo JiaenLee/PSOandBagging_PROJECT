@@ -282,32 +282,31 @@ if __name__ == "__main__":
     df_res_path = path["data_filter_result_path"]
     log_folder = os.path.dirname(path["log_file"])
     if log_folder and not os.path.exists(log_folder):
-        os.makedirs(log_folder, exist_ok=True)  # 自動防呆建立資料夾
-    fold_test_acc_csv = os.path.join(
-    os.path.dirname(path["log_file"]),
-    "Bagging_fold_testing_accuracies.csv"
-)
+        os.makedirs(log_folder, exist_ok=True)  # 自動建立資料夾
 
-    if not os.path.exists(fold_test_acc_csv):
-        with open(fold_test_acc_csv, mode='w', encoding='utf-8', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(["Dataset","Fold_1","Fold_2","Fold_3","Fold_4","Fold_5"])
+    fold_test_acc_csv = os.path.join(
+        os.path.dirname(path["log_file"]),
+        "Bagging_fold_testing_accuracies.csv"
+    )
+
+    # 初始化測試準確率 CSV (標頭)
+    with open(fold_test_acc_csv, mode='w', encoding='utf-8', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["Dataset","Fold_1","Fold_2","Fold_3","Fold_4","Fold_5"])
     
-    # 確保 df_res_path 的父資料夾存在
+    # 確保資料過濾結果路徑存在並初始化
     df_folder = os.path.dirname(df_res_path)
     if df_folder and not os.path.exists(df_folder):
         os.makedirs(df_folder, exist_ok=True)
     
-    # 建立儲存資料過濾筆數與比例的標頭
     with open(df_res_path, mode='w', encoding='utf-8', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Dataset", "avg filtered count", "avg filtered rate"])
 
-    # 檔案不存在才建立標頭，存在的話就裝作沒事，絕對不清空舊資料！
-    if not os.path.exists(path["log_file"]):
-        with open(path["log_file"], mode='w', encoding='utf-8', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(["Dataset", "Training_Accuracy", "Test_Accuracy", "Time"])
+    # 初始化主要 Log 檔案 (標頭)
+    with open(path["log_file"], mode='w', encoding='utf-8', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["Dataset", "Training_Accuracy", "Test_Accuracy", "Time"])
 
     # ====== 🎯 掃描順序：先二類別，再多類別 ======
     data_folders = [
@@ -315,37 +314,42 @@ if __name__ == "__main__":
         "datasets/離散化資料集/多類別"   
     ]
     
-    # 使用外層迴圈依序讀取兩個資料夾
     for data_folder in data_folders:
-        print(f"\n================ 正在掃描資料夾: {data_folder} ================")
+        # ====== 核心修改 1：取得資料夾標籤 (二類別/多類別) ======
+        folder_label = os.path.basename(data_folder)
+        print(f"\n================ 正在掃描資料夾: {folder_label} ================")
         
-        # ====== 🎯 加上 sorted() 確保該資料夾內的檔案從 A-Z 依序排列 ======
         dataset_list = sorted([
             f.replace(".csv", "")
             for f in os.listdir(data_folder)
             if f.endswith(".csv")
         ])
 
-        for filename in dataset_list: # 處理每個資料集
-            print(f"處理資料集: {filename}")
+        for filename in dataset_list: 
+            # ====== 核心修改 2：建立唯一名稱 ======
+            unique_name = f"{folder_label}_{filename}"
+            
+            print(f"處理資料集: {unique_name}")
             file_path = os.path.join(data_folder, filename + '.csv')
-            target_column = "class"    # 類別欄位設為 'class'
+            target_column = "class" 
 
-            # 進行 TRENB 訓練，得到五折交叉驗證後的訓練集、測試集準確率
-            training_accuracy, test_accuracy, exec_time, fold_test_list = cross_validation_with_ensemble(file_path, target_column, model_config, filename)
+            # 進行 Bagging 訓練，傳入 unique_name 以確保 JSON/Pickle 唯一
+            res = cross_validation_with_ensemble(file_path, target_column, model_config, unique_name)
+            
+            training_accuracy, test_accuracy, exec_time, fold_test_list = res
 
-            # 將兩個準確率 寫入 csv（使用 append 模式，避免被覆蓋）
+            # 將結果寫入 CSV（使用 unique_name）
             with open(path["log_file"], mode='a', encoding='utf-8', newline='') as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow([filename, training_accuracy, test_accuracy, exec_time])
+                writer.writerow([unique_name, training_accuracy, test_accuracy, exec_time])
 
             with open(fold_test_acc_csv, mode='a', encoding='utf-8', newline='') as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow([filename] + fold_test_list)
+                writer.writerow([unique_name] + fold_test_list)
 
-                parent_path = Path.cwd()
-                data_filter_var_path = os.path.join(parent_path, "data_filter_var.xlsx")
-
-                check_data_filter.check_filtering_result(data_filter_var_path, model_config, filename, df_res_path)
+            # 檢查過濾結果（使用 unique_name 作為索引）
+            parent_path = Path.cwd()
+            data_filter_var_path = os.path.join(parent_path, "data_filter_var.xlsx")
+            check_data_filter.check_filtering_result(data_filter_var_path, model_config, unique_name, df_res_path)
 
     print("\n🎉 所有資料夾內的所有資料集已全部執行完畢！")
