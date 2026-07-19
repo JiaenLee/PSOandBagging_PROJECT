@@ -11,7 +11,7 @@ project_dir = os.path.dirname(script_dir)
 
 # Excel 輸出位置：YiCi程式/模型分析
 folder_name = os.path.join(script_dir, "模型分析")
-output_filename = "Bagging_模型正確率分析.xlsx"
+output_filename = "Bagging_training_accuracies分析.xlsx"
 output_path = os.path.join(folder_name, output_filename)
 
 # JSON 檔案位置
