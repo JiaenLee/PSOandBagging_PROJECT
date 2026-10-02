@@ -11,4 +11,7 @@ datasets/
 accuracy_result/
 temp_models/
 training_accuracies/
-
+output_bagging.txt
+output_bagging.txt.tmp
+output_PSO.txt
+output_PSO.txt.tmp

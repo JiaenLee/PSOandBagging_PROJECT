@@ -1,21 +1,21 @@
 import pickle
-import random
-import copy, re, traceback
+import copy, hashlib, re, threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 import pandas as pd
 import os, time, json, csv
-from pathlib import Path
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import LabelEncoder
-from tqdm import tqdm
 import config
+
+JSON_WRITE_LOCK = threading.Lock()
 
 """
 1. 此程式的目的為訓練所有基本模型，記錄訓練集與測試集正確率(未集成挑選)
 2. 並執行資料過濾，最後儲存模型資訊
 """
 
-def random_naive_model(feature_value_counts, class_nums):
+def random_naive_model(feature_value_counts, class_nums, rng):
     """
     隨機生成簡易貝氏的先驗機率與似然機率
         先驗機率 (Prior Probability)：在還沒看到任何證據（特徵）之前，根據以往經驗對某個類別發生的機率判斷。
@@ -27,14 +27,14 @@ def random_naive_model(feature_value_counts, class_nums):
     feature_nums = len(feature_value_counts)  
     # 1. 使用 dirichlet() 生成隨機的先驗機率，其總和為 1
     # 狄利克雷分佈 (Dirichlet Distribution)：生成的數值總和必定等於 1。
-    random_prior = np.random.dirichlet(np.ones(class_nums)) # 根據類別數量（class_nums），生成一組隨機比例
+    random_prior = rng.dirichlet(np.ones(class_nums)) # 根據類別數量（class_nums），生成一組隨機比例
 
     # 2. 生成 likelihood (用 List 儲存不同形狀的陣列)
     random_likelihood = []
 
     for v_count in feature_value_counts:
         # 生成一個形狀為 (class_nums, v_count) 的隨機矩陣(針對每一個特徵（Feature），為每一個類別生成一組隨機的數值分佈)
-        l_matrix = np.random.dirichlet(np.ones(v_count), size=class_nums)
+        l_matrix = rng.dirichlet(np.ones(v_count), size=class_nums)
         random_likelihood.append(l_matrix)
     return random_prior, random_likelihood
 
@@ -75,7 +75,7 @@ def predict(X, prior, likelihood):
     
 
 # 實作粒子群優化演算法：每個粒子都代表一個模型，帶有兩個參數 - prior、likelihood
-def PSO(X, y, feature_value_counts, class_nums, pso_config):
+def PSO(X, y, feature_value_counts, class_nums, pso_config, rng, progress_callback=None):
     """
     定義粒子群優化演算法，優化使用隨機生成產生的簡易貝氏模型
     Return:
@@ -96,14 +96,16 @@ def PSO(X, y, feature_value_counts, class_nums, pso_config):
     velocities = []
     for i in range(num_particles):
         # 隨機初始化粒子先驗機率、似然機率 (做為粒子的位置參數)
-        particle_prior, particle_likelihood = random_naive_model(feature_value_counts, class_nums)
+        particle_prior, particle_likelihood = random_naive_model(
+            feature_value_counts, class_nums, rng
+        )
         positions.append((particle_prior, particle_likelihood))
 
         # 隨機初始化先驗機率、似然機率的「速度」，速度的總和不需為 1
-        prior_veclocity = np.random.uniform(bounds[0], bounds[1], size=class_nums) * 0.1  # 產生一個大小為 size 的隨機數陣列
+        prior_veclocity = rng.uniform(bounds[0], bounds[1], size=class_nums) * 0.1  # 產生一個大小為 size 的隨機數陣列
         likelihood_velocity = []
         for v_count in feature_value_counts:
-            l_vel = np.random.uniform(bounds[0], bounds[1], size=(class_nums, v_count)) * 0.1
+            l_vel = rng.uniform(bounds[0], bounds[1], size=(class_nums, v_count)) * 0.1
             likelihood_velocity.append(l_vel)
 
         velocities.append((prior_veclocity, likelihood_velocity))
@@ -127,7 +129,7 @@ def PSO(X, y, feature_value_counts, class_nums, pso_config):
     global_best_fitness = personal_best_fitness[best_idx]
 
     # PSO 主循環
-    for _ in range(max_iter):
+    for iteration in range(max_iter):
         # 更新每個粒子的速度與位置(代表演化的代數（世代）。每一代，所有的粒子都會移動一次)
         for j in range(num_particles):
             # 取得第 j 個粒子的所有資訊(逐一更新每一個粒子（即每一個簡易貝氏模型）)
@@ -136,7 +138,7 @@ def PSO(X, y, feature_value_counts, class_nums, pso_config):
             gbest_prior, gbest_likelihood = global_best_positions
             vel_prior, vel_likelihood = velocities[j]
 
-            r1, r2 = np.random.random(2)
+            r1, r2 = rng.random(2)
 
             # 更新 prior 先驗機率
             velocities[j][0] = w * vel_prior + c1 * r1 * (pbest_prior - prior) + c2 * r2 * (gbest_prior - prior)
@@ -173,11 +175,16 @@ def PSO(X, y, feature_value_counts, class_nums, pso_config):
         if personal_best_fitness[best_idx] > global_best_fitness:
             global_best_fitness = personal_best_fitness[best_idx]
             global_best_positions = personal_best_positions[best_idx]
+        if progress_callback:
+            progress_callback((iteration + 1) / max_iter)
 
     return global_best_positions[0], global_best_positions[1]
 
 
-def cv_with_ensemble_selection(file_path, target_column, model_config, pso_config, dataset_name):
+def cv_with_ensemble_selection(
+    file_path, target_column, model_config, pso_config, dataset_name,
+    random_seed=42, progress_callback=None
+):
     """
     進行五折交叉驗證訓練，以下每個步驟都是在每一折內各自進行：將資料分成 5 份，輪流將 4 份作為訓練集，1 份作為測試集
     1. 每一折訓練產生 25 個基本模型 (使用隨機生成結合粒子群優化)
@@ -217,7 +224,8 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
     # KFold:把一份原始資料，按照科學的方法公平地切分成「訓練用」和「考驗用」兩部分
     # shuffle=True: 決定在切分資料之前，要不要先打亂資料的順序
     # random_state=42: 打亂順序的隨機種子, 設為固定參數所以每次都一樣
-    kf = KFold(n_splits = k, shuffle = True, random_state = 42) 
+    kf = KFold(n_splits = k, shuffle = True, random_state = random_seed)
+    rng = np.random.default_rng(random_seed)
     training_accuracies = []    # 儲存每個 fold 基本模型對 training set 的預測準確率，這是存全部的 (5折 * 50個 = 250個)
     test_results_with_counts = []  # 儲存每折的測試結果與筆數資訊
 
@@ -242,29 +250,31 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
 
         nums = 0
         # 生成 25 個模型
-        with tqdm(total = num_base_models, desc = f"Fold {fold + 1} - Building Models") as pbar:
-            while nums < num_base_models:     
-                try:
-                    # 生成一個簡易貝氏基本模型，global_best_fitness 為基本模型對於訓練集的正確率
-                    prior, likelihood = PSO(
-                        X_train, y_train, feature_value_counts, class_nums, pso_config
+        if progress_callback:
+            progress_callback(fold + 1, 0)
+        while nums < num_base_models:
+            # 生成一個簡易貝氏基本模型，global_best_fitness 為基本模型對於訓練集的正確率
+            prior, likelihood = PSO(
+                X_train, y_train, feature_value_counts, class_nums, pso_config, rng,
+                progress_callback=(
+                    lambda fraction: progress_callback(
+                        fold + 1,
+                        int((nums + fraction) * 100 / num_base_models)
                     )
-                    pso_models.append((prior, likelihood))
-                    pred_vector, pred_class = predict(X_train, prior, likelihood)  # 用剛剛生成的基本模型去預測訓練集
-                    
-                except Exception as e:
-                    error_detail = traceback.format_exc()
-                    tqdm.write(f"[WARN] PSO failed for fold {fold + 1} model {nums + 1}: {error_detail}")
-                    return None, None, None 
-                
-                acc = np.mean(pred_class == y_train)
-                training_accuracies.append(acc)  # 一個 fold 裡的一個基本模型的訓練集準確率
-                
-                # 測試集預測
-                pred_vector, pred_class = predict(X_test, prior, likelihood)
-                model_test_predictions[:,nums] = pred_class  # 基本模型 i 對所有測試樣本的預測結果
-                nums += 1
-                pbar.update(1)
+                ) if progress_callback else None
+            )
+            pso_models.append((prior, likelihood))
+            pred_vector, pred_class = predict(X_train, prior, likelihood)  # 用剛剛生成的基本模型去預測訓練集
+
+            acc = np.mean(pred_class == y_train)
+            training_accuracies.append(acc)  # 一個 fold 裡的一個基本模型的訓練集準確率
+
+            # 測試集預測
+            pred_vector, pred_class = predict(X_test, prior, likelihood)
+            model_test_predictions[:,nums] = pred_class  # 基本模型 i 對所有測試樣本的預測結果
+            nums += 1
+            if progress_callback:
+                progress_callback(fold + 1, int(nums * 100 / num_base_models))
 
         fold_data["PSO_TRENB"] = pso_models  # 記錄所有 PSO 基本模型資訊
 
@@ -297,55 +307,59 @@ def cv_with_ensemble_selection(file_path, target_column, model_config, pso_confi
     with open(output_path, 'wb') as f:
         pickle.dump(fold_models, f)
 
-    print(f"模型已保存至 {output_path}")
-
     return training_accuracies, test_results_with_counts, exec_time
+
+
+def _write_progress(path, statuses):
+    temporary_path = f"{path}.tmp"
+    with open(temporary_path, "w", encoding="utf-8") as progress_file:
+        for dataset_name, status in statuses.items():
+            progress_file.write(f"{dataset_name}: {status}\n")
+    os.replace(temporary_path, path)
+
+
+def _update_progress(path, statuses, lock, dataset_name, fold, percent, error=None):
+    status = f"Fold {fold}-{percent}%"
+    if error:
+        status += f" | ERROR: {str(error).replace(chr(10), ' ').replace(chr(13), ' ')}"
+    with lock:
+        if statuses.get(dataset_name) == status:
+            return
+        statuses[dataset_name] = status
+        _write_progress(path, statuses)
+
 
 # 寫入 json 檔案，並壓縮內層
 def write_json_data(path, dataset_name, content):
-    
-    # ====== 1️⃣ 如果資料夾不存在就建立 ======
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-
-    # ====== 2️⃣ 如果檔案不存在就建立空 json ======
-    if not os.path.exists(path):
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({}, f)
-
-    # ====== 3️⃣ 讀取原有資料 ======
-
-    with open(path, "r", encoding="utf-8") as r:
-        try:
-            json_data = json.load(r)
-        except json.JSONDecodeError:
+    with JSON_WRITE_LOCK:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as r:
+                try:
+                    json_data = json.load(r)
+                except json.JSONDecodeError:
+                    json_data = {}
+        else:
             json_data = {}
-     # ====== 4️⃣ 更新資料 ======
-    json_data[f"{dataset_name}"] = content
 
-    # ====== 5️⃣ 轉為字串並壓縮內層格式 ======
-    json_str = json.dumps(json_data, ensure_ascii=False, indent=3)
-
-    json_str = re.sub(
-        r'\[\s*([0-9\.\,\s\-]+?)\s*\]', 
-        lambda m: '[' + ', '.join([x.strip() for x in m.group(1).split(',')]) + ']',
-        json_str
-    )
-
-    json_str = re.sub(
-        r'(\[\s*(?:\[[0-9\.\,\s\-]+\]\s*,?\s*)+\])',
-        lambda m: re.sub(r'\s+', ' ', m.group(1)).replace(' [', '[').replace('] ]', ']]'),
-        json_str
-    )
-
-    # ====== 6️⃣ 寫回檔案 ======
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(json_str)
+        json_data[dataset_name] = content
+        json_str = json.dumps(json_data, ensure_ascii=False, indent=3)
+        json_str = re.sub(
+            r'\[\s*([0-9\.\,\s\-]+?)\s*\]',
+            lambda m: '[' + ', '.join([x.strip() for x in m.group(1).split(',')]) + ']',
+            json_str
+        )
+        json_str = re.sub(
+            r'(\[\s*(?:\[[0-9\.\,\s\-]+\]\s*,?\s*)+\])',
+            lambda m: re.sub(r'\s+', ' ', m.group(1)).replace(' [', '[').replace('] ]', ']]'),
+            json_str
+        )
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(json_str)
 
 if __name__ == "__main__":
-    random.seed(42)
     model_config = config.MODEL_CONFIG
     pso_config = config.PSO_CONFIG
-    path = config.PATH.get("PSO_TRENB")
     
     # 設定輸出資料夾為 accuracy_result 
     output_dir = "accuracy_result"
@@ -365,6 +379,7 @@ if __name__ == "__main__":
 
     start_from_dataset = "Algerian" 
     found_start = False 
+    dataset_jobs = []
 
     for data_folder in folders_to_process:
         folder_label = os.path.basename(data_folder)
@@ -383,18 +398,51 @@ if __name__ == "__main__":
                     continue
             
             unique_name = f"{folder_label}_{filename}"
-            print(f"處理資料集: {unique_name}")
             file_path = os.path.join(data_folder, filename + '.csv')
-            target_column = "class"
+            seed = int.from_bytes(
+                hashlib.sha256(f"42:{unique_name}".encode("utf-8")).digest()[:4],
+                byteorder="big"
+            )
+            dataset_jobs.append((unique_name, file_path, seed))
 
-            res = cv_with_ensemble_selection(file_path, target_column, model_config, pso_config, unique_name)
-            
-            if res[0] is None: 
-                continue
+    progress_path = os.path.join(os.getcwd(), "output_PSO.txt")
+    progress_statuses = {
+        name: "Fold 1-0%"
+        for name, _, _ in dataset_jobs
+    }
+    _write_progress(progress_path, progress_statuses)
+    progress_lock = threading.Lock()
+    print("[請開啟output_PSO.txt檢視進度...]")
 
-            training_acc_list, test_info_list, exec_time = res
+    def process_dataset(job):
+        name, file_path, seed = job
+        current = {"fold": 1, "percent": 0}
 
-            # 將結果寫入 accuracy_result 下的 CSV
-            with open(main_log_csv, mode='a', encoding='utf-8', newline='') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow([unique_name] + test_info_list + [exec_time])
+        def report_progress(fold, percent):
+            current.update(fold=fold, percent=percent)
+            _update_progress(
+                progress_path, progress_statuses, progress_lock, name, fold, percent
+            )
+
+        try:
+            result = cv_with_ensemble_selection(
+                file_path, "class", model_config, pso_config, name,
+                random_seed=seed, progress_callback=report_progress
+            )
+            return name, result
+        except Exception as error:
+            _update_progress(
+                progress_path, progress_statuses, progress_lock, name,
+                current["fold"], current["percent"], error
+            )
+            return name, None
+
+    with open(main_log_csv, mode="a", encoding="utf-8", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(process_dataset, job) for job in dataset_jobs]
+            for future in as_completed(futures):
+                name, result = future.result()
+                if result is not None:
+                    _, test_info_list, exec_time = result
+                    writer.writerow([name] + test_info_list + [exec_time])

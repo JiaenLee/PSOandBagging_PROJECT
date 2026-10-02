@@ -1,13 +1,16 @@
 import pickle
 import random, re
+import threading
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import KFold
 import os, time, json, csv
 from pathlib import Path
-from tqdm import tqdm
 import config
+
+JSON_WRITE_LOCK = threading.Lock()
 
 def naive_bayes_classifier(df_train, attributes, class_nums):
     """
@@ -92,7 +95,7 @@ def predict(nj, df_predict, prior, p_Xi_Cj_dict, att_value_counts):
     
     return np.array(pred_vector), np.array(pred_class)
 
-def cross_validation_with_ensemble(file_path, target_column, model_config, dataset_name):
+def cross_validation_with_ensemble(file_path, target_column, model_config, dataset_name, random_seed=None, progress_callback=None):
     """
     進行五折交叉驗證訓練，以下每個步驟都是在每一折內各自進行
     1. 每一折訓練產生 25 個基本模型 (Bagging)
@@ -104,6 +107,7 @@ def cross_validation_with_ensemble(file_path, target_column, model_config, datas
     # 從 model_config 中解析模型參數
     k = model_config['k_folds']
     num_base_models = model_config['num_base_models']
+    rng = random.Random(random_seed) if random_seed is not None else random
 
     data = pd.read_csv(file_path)
     attributes = data.columns[:-1]  # 特徵名稱集合
@@ -155,28 +159,28 @@ def cross_validation_with_ensemble(file_path, target_column, model_config, datas
 
         # 集成 num_base_models 個 base models 的預測結果  
         nums = 0
-        with tqdm(total = num_base_models, desc = f"Fold {fold + 1} - Building Models") as pbar:
-            while nums < num_base_models:
-                # 生成 0 ~ N-1 範圍內的隨機亂數，總共生成 N 個
-                # 這步驟代表 bagging 的取後放回抽樣，陣列裡的每個元素即為抽到的訓練集樣本索引
-                sampled_indices = random.choices(range(N), k = N)
-                bag_train_data = train_data.iloc[sampled_indices]
-                nj = bag_train_data['class'].value_counts()
+        while nums < num_base_models:
+            # 生成 0 ~ N-1 範圍內的隨機亂數，總共生成 N 個
+            # 這步驟代表 bagging 的取後放回抽樣，陣列裡的每個元素即為抽到的訓練集樣本索引
+            sampled_indices = rng.choices(range(N), k = N)
+            bag_train_data = train_data.iloc[sampled_indices]
+            nj = bag_train_data['class'].value_counts()
 
-                # 計算訓練資料集的先驗機率、似然機率
-                prior, p_Xi_Cj_dict, att_value_counts = naive_bayes_classifier(bag_train_data, attributes, class_nums)
-                bagging_models.append((prior, p_Xi_Cj_dict, att_value_counts, nj))  # nj 為子訓練集的類別數量
+            # 計算訓練資料集的先驗機率、似然機率
+            prior, p_Xi_Cj_dict, att_value_counts = naive_bayes_classifier(bag_train_data, attributes, class_nums)
+            bagging_models.append((prior, p_Xi_Cj_dict, att_value_counts, nj))  # nj 為子訓練集的類別數量
 
-                # 對原始訓練集的預測
-                pred_vector, pred_class = predict(nj, train_data, prior, p_Xi_Cj_dict, att_value_counts)
-                training_accuracies.append(np.mean(y_train == pred_class))  # 記錄訓練集準確率
-                
-                # 測試集預測
-                pred_vector, pred_class = predict(nj, test_data, prior, p_Xi_Cj_dict, att_value_counts)
-                model_test_predictions[:,nums] = pred_class  # 基本模型 i 對所有測試樣本的預測結果
+            # 對原始訓練集的預測
+            pred_vector, pred_class = predict(nj, train_data, prior, p_Xi_Cj_dict, att_value_counts)
+            training_accuracies.append(np.mean(y_train == pred_class))  # 記錄訓練集準確率
 
-                nums += 1
-                pbar.update(1)
+            # 測試集預測
+            pred_vector, pred_class = predict(nj, test_data, prior, p_Xi_Cj_dict, att_value_counts)
+            model_test_predictions[:,nums] = pred_class  # 基本模型 i 對所有測試樣本的預測結果
+
+            nums += 1
+            if progress_callback:
+                progress_callback(fold, int(nums * 100 / num_base_models))
 
         fold_data["Bagging"] = bagging_models  # 記錄所有 Bagging 基本模型資訊
 
@@ -199,7 +203,8 @@ def cross_validation_with_ensemble(file_path, target_column, model_config, datas
     path = config.PATH.get("Bagging")
 
     # 將所有預測資訊寫入
-    write_json_data(path["training_accuracy_path"], dataset_name, training_accuracies)  # 將五折交叉驗證中的訓練集樣本預測正確率寫入
+    with JSON_WRITE_LOCK:
+        write_json_data(path["training_accuracy_path"], dataset_name, training_accuracies)  # 將五折交叉驗證中的訓練集樣本預測正確率寫入
    
     # 保存模型至文件
     output_path = os.path.join(path["model_path"], f"{dataset_name}_models.pkl")
@@ -210,8 +215,6 @@ def cross_validation_with_ensemble(file_path, target_column, model_config, datas
 
     with open(output_path, 'wb') as f:
         pickle.dump(fold_models, f)
-
-    print(f"模型已保存至 {output_path}")
 
     return training_accuracies, test_results_with_counts, exec_time
 
@@ -260,7 +263,6 @@ def write_json_data(path, dataset_name, content):
         f.write(json_str)
 
 if __name__ == "__main__":
-    random.seed(42)
     model_config = config.MODEL_CONFIG
     path = config.PATH.get("Bagging")
     
@@ -280,23 +282,54 @@ if __name__ == "__main__":
         "datasets/離散化資料集/多類別"   
     ]
     
+    dataset_jobs = []
+    seed_generator = random.Random(42)
     for data_folder in data_folders:
         folder_label = os.path.basename(data_folder)
-        print(f"\n================ 正在掃描資料夾: {folder_label} ================")
-        
         dataset_list = sorted([
             f.replace(".csv", "")
             for f in os.listdir(data_folder)
             if f.endswith(".csv")
         ])
 
-        for filename in dataset_list: 
+        for filename in dataset_list:
             unique_name = f"{folder_label}_{filename}"
-            print(f"處理資料集: {unique_name}")
             file_path = os.path.join(data_folder, filename + '.csv')
-            target_column = "class" 
+            dataset_jobs.append((unique_name, file_path, seed_generator.randrange(2**32)))
 
-            res = cross_validation_with_ensemble(file_path, target_column, model_config, unique_name)
+    progress_lock = threading.Lock()
+    progress_states = [
+        f"{name}: Fold 1-0%" for name, _, _ in dataset_jobs
+    ]
+    progress_path = "output_bagging.txt"
+    progress_temp_path = progress_path + ".tmp"
+    print("[請開啟output_bagging.txt檢視進度...]")
+
+    def write_progress_file():
+        with open(progress_temp_path, "w", encoding="utf-8") as progress_file:
+            progress_file.write("\n".join(progress_states) + "\n")
+        os.replace(progress_temp_path, progress_path)
+
+    def update_progress(dataset_index, fold, percent):
+        with progress_lock:
+            name = dataset_jobs[dataset_index][0]
+            progress_states[dataset_index] = f"{name}: Fold {fold + 1}-{percent}%"
+            write_progress_file()
+
+    write_progress_file()
+
+    with ThreadPoolExecutor(max_workers=len(dataset_jobs) or 1) as executor:
+        results = executor.map(
+            lambda indexed_job: cross_validation_with_ensemble(
+                indexed_job[1][1], "class", model_config, indexed_job[1][0],
+                random_seed=indexed_job[1][2],
+                progress_callback=lambda fold, percent: update_progress(
+                    indexed_job[0], fold, percent
+                ),
+            ),
+            enumerate(dataset_jobs),
+        )
+        for (unique_name, _, _), res in zip(dataset_jobs, results):
             training_acc_list, test_info_list, exec_time = res
 
             # 將結果寫入 accuracy_result 下的 CSV
