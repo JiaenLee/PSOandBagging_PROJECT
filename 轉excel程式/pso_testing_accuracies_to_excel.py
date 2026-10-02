@@ -17,7 +17,7 @@ def pso_accuracies_to_excel(pso_csv, output_xlsx):
 
     # 1. 確認 PSO CSV 是否存在
     if not os.path.exists(pso_csv):
-        print("❌ 錯誤：找不到 PSO CSV 檔案。")
+        print("錯誤：找不到 PSO CSV 檔案。")
         print(f"缺少：{pso_csv}")
         return
 
@@ -25,13 +25,13 @@ def pso_accuracies_to_excel(pso_csv, output_xlsx):
     try:
         df_pso = pd.read_csv(pso_csv)
     except Exception as error:
-        print("❌ PSO CSV 讀取失敗。")
+        print("PSO CSV 讀取失敗。")
         print(f"錯誤訊息：{error}")
         return
 
     # 3. 確認必要欄位存在
     if "Dataset" not in df_pso.columns:
-        print("❌ CSV 中找不到必要欄位：Dataset")
+        print("CSV 中找不到必要欄位：Dataset")
         print(f"目前欄位：{list(df_pso.columns)}")
         return
 
@@ -131,12 +131,12 @@ def pso_accuracies_to_excel(pso_csv, output_xlsx):
             engine="openpyxl"
         )
     except Exception as error:
-        print("❌ Excel 輸出失敗。")
+        print("Excel 輸出失敗。")
         print(f"錯誤訊息：{error}")
         return
 
-    print("✅ PSO Testing Accuracy 轉換完成！")
-    print(f"📊 分析檔案已存至：{output_xlsx}")
+    print("PSO Testing Accuracy 轉換完成！")
+    print(f"分析檔案已存至：{output_xlsx}")
 
 
 if __name__ == "__main__":

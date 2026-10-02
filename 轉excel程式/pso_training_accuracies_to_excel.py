@@ -18,7 +18,7 @@ def pso_training_to_excel(pso_json_path, output_xlsx):
 
     # 1. 確認 PSO JSON 是否存在
     if not os.path.exists(pso_json_path):
-        print("❌ 錯誤：找不到 PSO Training JSON。")
+        print("錯誤：找不到 PSO Training JSON。")
         print(f"缺少：{pso_json_path}")
         return
 
@@ -27,16 +27,16 @@ def pso_training_to_excel(pso_json_path, output_xlsx):
         with open(pso_json_path, "r", encoding="utf-8") as file:
             json_pso = json.load(file)
     except json.JSONDecodeError as error:
-        print("❌ PSO JSON 格式錯誤，無法讀取。")
+        print("PSO JSON 格式錯誤，無法讀取。")
         print(f"錯誤訊息：{error}")
         return
     except Exception as error:
-        print("❌ PSO JSON 讀取失敗。")
+        print("PSO JSON 讀取失敗。")
         print(f"錯誤訊息：{error}")
         return
 
     if not isinstance(json_pso, dict):
-        print("❌ JSON 最外層格式應為物件（dict）。")
+        print("JSON 最外層格式應為物件（dict）。")
         return
 
     rows = []
@@ -55,7 +55,7 @@ def pso_training_to_excel(pso_json_path, output_xlsx):
 
         # 確認正確率資料是列表
         if not isinstance(pso_list, list):
-            print(f"⚠️ 跳過 {full_name}：資料不是列表。")
+            print(f"跳過 {full_name}：資料不是列表。")
             continue
 
         # 每個資料集通常會有 125 筆 Training Accuracy
@@ -70,7 +70,7 @@ def pso_training_to_excel(pso_json_path, output_xlsx):
     df_final = pd.DataFrame(rows)
 
     if df_final.empty:
-        print("❌ 沒有 PSO Training Accuracy 可供處理。")
+        print("沒有 PSO Training Accuracy 可供處理。")
         return
 
     # 將正確率轉成可供 Excel 計算的數值格式
@@ -116,13 +116,13 @@ def pso_training_to_excel(pso_json_path, output_xlsx):
             engine="openpyxl"
         )
     except Exception as error:
-        print("❌ Excel 輸出失敗。")
+        print( "Excel 輸出失敗。")
         print(f"錯誤訊息：{error}")
         return
 
-    print("✅ PSO Training Accuracy 轉換完成！")
-    print(f"📊 分析檔案已存至：{output_xlsx}")
-    print(f"📌 共輸出 {len(df_final)} 筆資料。")
+    print("PSO Training Accuracy 轉換完成！")
+    print(f"分析檔案已存至：{output_xlsx}")
+    print(f"共輸出 {len(df_final)} 筆資料。")
 
 
 if __name__ == "__main__":

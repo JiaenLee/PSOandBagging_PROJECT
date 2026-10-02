@@ -16,7 +16,7 @@ def main():
     elif choice == "2":
         category_name = "多類別"
     else:
-        print("❌ 輸入無效，程式結束。")
+        print("輸入無效，程式結束。")
         return
 
     # 2. 定位相對路徑 (腳本在 轉excel程式/ 目錄下)
@@ -33,17 +33,17 @@ def main():
         os.makedirs(output_dir)
 
     if not os.path.exists(dataset_dir):
-        print(f"❌ 找不到目標資料夾：{dataset_dir}")
+        print(f"找不到目標資料夾：{dataset_dir}")
         return
 
     # 3. 讀取該目錄下所有 .csv 檔案並依照名稱排序
     csv_files = sorted([f for f in os.listdir(dataset_dir) if f.endswith(".csv")])
     
     if not csv_files:
-        print(f"⚠️ 在 {dataset_dir} 找不到任何 .csv 檔案！")
+        print(f"在 {dataset_dir} 找不到任何 .csv 檔案！")
         return
 
-    print(f"\n🚀 正在處理 [{category_name}]，共找到 {len(csv_files)} 個資料集...\n")
+    print(f"\n正在處理 [{category_name}]，共找到 {len(csv_files)} 個資料集...\n")
 
     summary_list = []
 
@@ -75,17 +75,17 @@ def main():
                 "特徵數": feature_count,
                 "類別數": class_count
             })
-            print(f"✔ 已讀取: {dataset_name:<20} | 樣本數: {sample_count:<6} | 特徵數: {feature_count:<4} | 類別數: {class_count}")
+            print(f"已讀取: {dataset_name:<20} | 樣本數: {sample_count:<6} | 特徵數: {feature_count:<4} | 類別數: {class_count}")
 
         except Exception as e:
-            print(f"❌ 讀取 {file} 時發生錯誤: {e}")
+            print(f"讀取 {file} 時發生錯誤: {e}")
 
     # 5. 轉成 DataFrame 並輸出為 Excel
     df_summary = pd.DataFrame(summary_list)
     
     df_summary.to_excel(output_file, index=False)
     print("-" * 50)
-    print(f"🎉 處理完成！結果已成功儲存至：\n👉 {output_file}\n")
+    print(f"處理完成！結果已成功儲存至：\n {output_file}\n")
 
 if __name__ == "__main__":
     main()

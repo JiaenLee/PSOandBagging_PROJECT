@@ -16,7 +16,7 @@ def pso_time_to_excel(pso_csv_path, output_xlsx):
 
     # 1. 確認 PSO CSV 是否存在
     if not os.path.exists(pso_csv_path):
-        print("❌ 錯誤：找不到 PSO CSV 檔案。")
+        print("錯誤：找不到 PSO CSV 檔案。")
         print(f"缺少：{pso_csv_path}")
         return
 
@@ -24,7 +24,7 @@ def pso_time_to_excel(pso_csv_path, output_xlsx):
     try:
         df_pso = pd.read_csv(pso_csv_path)
     except Exception as error:
-        print("❌ PSO CSV 讀取失敗。")
+        print("PSO CSV 讀取失敗。")
         print(f"錯誤訊息：{error}")
         return
 
@@ -33,7 +33,7 @@ def pso_time_to_excel(pso_csv_path, output_xlsx):
     missing_columns = required_columns - set(df_pso.columns)
 
     if missing_columns:
-        print("❌ CSV 缺少必要欄位。")
+        print("CSV 缺少必要欄位。")
         print(f"缺少欄位：{sorted(missing_columns)}")
         print(f"目前欄位：{list(df_pso.columns)}")
         return
@@ -62,7 +62,7 @@ def pso_time_to_excel(pso_csv_path, output_xlsx):
     df_final = pd.DataFrame(rows)
 
     if df_final.empty:
-        print("❌ 沒有 PSO 運行時間資料可供處理。")
+        print("沒有 PSO 運行時間資料可供處理。")
         return
 
     # 將運行時間轉成 Excel 可計算的數值格式
@@ -108,12 +108,12 @@ def pso_time_to_excel(pso_csv_path, output_xlsx):
             engine="openpyxl"
         )
     except Exception as error:
-        print("❌ Excel 輸出失敗。")
+        print("Excel 輸出失敗。")
         print(f"錯誤訊息：{error}")
         return
 
-    print("✅ PSO 運行時間轉換完成！")
-    print(f"📊 分析檔案已存至：{output_xlsx}")
+    print("PSO 運行時間轉換完成！")
+    print(f"分析檔案已存至：{output_xlsx}")
 
 
 if __name__ == "__main__":

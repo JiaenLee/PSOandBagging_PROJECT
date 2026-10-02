@@ -8,7 +8,7 @@ def combine_accuracies_to_excel(bagging_csv, pso_csv, output_xlsx):
     若該折無資訊，則在 Excel 中留白。
     """
     if not os.path.exists(bagging_csv) or not os.path.exists(pso_csv):
-        print(f"❌ 錯誤：找不到必要的 CSV 檔案。")
+        print(f"錯誤：找不到必要的 CSV 檔案。")
         if not os.path.exists(bagging_csv): print(f"缺少：{bagging_csv}")
         if not os.path.exists(pso_csv): print(f"缺少：{pso_csv}")
         return
@@ -83,8 +83,8 @@ def combine_accuracies_to_excel(bagging_csv, pso_csv, output_xlsx):
     os.makedirs(os.path.dirname(output_xlsx), exist_ok=True)
     df_final.to_excel(output_xlsx, index=False, engine="openpyxl")
 
-    print(f"✅ 合併轉換完成！")
-    print(f"📊 分析檔案已存至：{output_xlsx}")
+    print(f"合併轉換完成！")
+    print(f"分析檔案已存至：{output_xlsx}")
 
 if __name__ == "__main__":
     # 獲取目前腳本所在路徑 (轉excel程式)

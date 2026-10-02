@@ -23,63 +23,22 @@ PSO_CONFIG = {
 
 # 3. ---實驗環境與路徑設定 ---
 PARENT_DIR = os.path.dirname(os.path.abspath(__file__))
-ACCURACY_RESULT_DIR = os.path.join(PARENT_DIR, "accuracy_result")
 TRAING_ACCURACY_RESULT_DIR = os.path.join(PARENT_DIR, "training_accuracies")
-TRAINING_PRED_VECTOR_DIR = os.path.join(PARENT_DIR, "training_pred_vec")
-DATA_FILTER_RESERVED_DIR = os.path.join(PARENT_DIR, "data_filter_reserved")
-DATA_FILTER_RESULT_DIR = os.path.join(PARENT_DIR, "data_filter_res")
 MODEL_DIR = os.path.join(PARENT_DIR, "temp_models")
-ES_RESULT_DIR = os.path.join(PARENT_DIR, "selection_result")  # 集成挑選後的模型索引，以及集成挑選後的測試集正確率儲存路徑
 
 PATH = {
     "PSO_TRENB":{
-        # 實驗結果儲存路徑
-        "log_file": os.path.join(ACCURACY_RESULT_DIR, "PSO_TRENB.csv"),
         # 基本模型訓練集正確率儲存路徑
         "training_accuracy_path": os.path.join(TRAING_ACCURACY_RESULT_DIR, "PSO_TRENB.json"),
-        # 基本模型訓練集預測向量儲存路徑
-        "training_pred_vector_path": os.path.join(TRAINING_PRED_VECTOR_DIR, "PSO_TRENB.json"),
-        # 資料過濾保留樣本儲存路徑
-        "data_filter_reserved_path": os.path.join(DATA_FILTER_RESERVED_DIR, "PSO_TRENB.json"),
-        # 資料過濾筆數與比例儲存路徑
-        "data_filter_result_path": os.path.join(DATA_FILTER_RESULT_DIR, "PSO_TRENB.csv"),
         # 模型儲存路徑
         "model_path": os.path.join(MODEL_DIR, "PSO_TRENB"),
-        # 集成挑選後的模型索引，以及集成挑選後的測試集正確率儲存路徑
-        "es_result_path": os.path.join(ES_RESULT_DIR, "PSO_TRENB.csv"),
     },
     "Bagging":{
-        # 實驗結果儲存路徑
-        "log_file": os.path.join(ACCURACY_RESULT_DIR, "Bagging.csv"),
         # 基本模型訓練集正確率儲存路徑
         "training_accuracy_path": os.path.join(TRAING_ACCURACY_RESULT_DIR, "Bagging.json"),
-        # 基本模型訓練集預測向量儲存路徑
-        "training_pred_vector_path": os.path.join(TRAINING_PRED_VECTOR_DIR, "Bagging.json"),
-        # 資料過濾保留樣本儲存路徑
-        "data_filter_reserved_path": os.path.join(DATA_FILTER_RESERVED_DIR, "Bagging.json"),
-        # 資料過濾筆數與比例儲存路徑
-        "data_filter_result_path": os.path.join(DATA_FILTER_RESULT_DIR, "Bagging.csv"),
         # 模型儲存路徑
         "model_path": os.path.join(MODEL_DIR, "Bagging"),
-        # 集成挑選後的模型索引，以及集成挑選後的測試集正確率儲存路徑
-        "es_result_path": os.path.join(ES_RESULT_DIR, "Bagging.csv"),
     },
-    "PSO_Bagging":{
-        # 實驗結果儲存路徑
-        "log_file": os.path.join(ACCURACY_RESULT_DIR, "PSO_Bagging.csv"),
-        # 基本模型訓練集正確率儲存路徑
-        "training_accuracy_path": os.path.join(TRAING_ACCURACY_RESULT_DIR, "PSO_Bagging.json"),
-        # 基本模型訓練集預測向量儲存路徑
-        "training_pred_vector_path": os.path.join(TRAINING_PRED_VECTOR_DIR, "PSO_Bagging.json"),
-        # 資料過濾保留樣本儲存路徑
-        "data_filter_reserved_path": os.path.join(DATA_FILTER_RESERVED_DIR, "PSO_Bagging.json"),
-        # 資料過濾筆數與比例儲存路徑
-        "data_filter_result_path": os.path.join(DATA_FILTER_RESULT_DIR, "PSO_Bagging.csv"),
-        # 模型儲存路徑
-        "model_path": os.path.join(MODEL_DIR, "PSO_Bagging"),
-        # 集成挑選後的模型索引，以及集成挑選後的測試集正確率儲存路徑
-        "es_result_path": os.path.join(ES_RESULT_DIR, "PSO_Bagging.csv"),
-    }
 }
 
 # 4. ---資料集設定 ---

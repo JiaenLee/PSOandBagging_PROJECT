@@ -14,13 +14,13 @@ def combine_training_to_excel(bagging_json_path, pso_json_path, output_xlsx):
         with open(bagging_json_path, 'r', encoding='utf-8') as f:
             json_bag = json.load(f)
     else:
-        print(f"⚠️ 找不到 Bagging JSON: {bagging_json_path}")
+        print(f"找不到 Bagging JSON: {bagging_json_path}")
 
     if os.path.exists(pso_json_path):
         with open(pso_json_path, 'r', encoding='utf-8') as f:
             json_pso = json.load(f)
     else:
-        print(f"⚠️ 找不到 PSO JSON: {pso_json_path}")
+        print(f"找不到 PSO JSON: {pso_json_path}")
 
     # 取得兩者資料集的聯集並排序
     all_keys = sorted(list(set(json_bag.keys()) | set(json_pso.keys())))
@@ -66,10 +66,10 @@ def combine_training_to_excel(bagging_json_path, pso_json_path, output_xlsx):
         # 4. 輸出 Excel
         os.makedirs(os.path.dirname(output_xlsx), exist_ok=True)
         df_final.to_excel(output_xlsx, index=False, engine="openpyxl")
-        print(f"✅ Training 正確率合併完成！")
-        print(f"📊 分析檔案已存至：{output_xlsx}")
+        print(f"Training 正確率合併完成！")
+        print(f"分析檔案已存至：{output_xlsx}")
     else:
-        print("❌ 沒有數據可供處理。")
+        print("沒有數據可供處理。")
 
 if __name__ == "__main__":
     # --- 自動路徑處理 ---

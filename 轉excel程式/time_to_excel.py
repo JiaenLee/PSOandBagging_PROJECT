@@ -6,7 +6,7 @@ def combine_time_to_excel(bagging_csv_path, pso_csv_path, output_xlsx):
     合併 Bagging 與 PSO 的運行時間，並解析資料集名稱標籤。
     """
     if not os.path.exists(bagging_csv_path) or not os.path.exists(pso_csv_path):
-        print(f"❌ 錯誤：找不到必要的 CSV 檔案。")
+        print(f"錯誤：找不到必要的 CSV 檔案。")
         if not os.path.exists(bagging_csv_path): print(f"缺少：{bagging_csv_path}")
         if not os.path.exists(pso_csv_path): print(f"缺少：{pso_csv_path}")
         return
@@ -52,8 +52,8 @@ def combine_time_to_excel(bagging_csv_path, pso_csv_path, output_xlsx):
     os.makedirs(os.path.dirname(output_xlsx), exist_ok=True)
     df_final.to_excel(output_xlsx, index=False, engine="openpyxl")
     
-    print(f"✅ 運行時間合併完成！")
-    print(f"📊 分析檔案已存至：{output_xlsx}")
+    print(f"運行時間合併完成！")
+    print(f"分析檔案已存至：{output_xlsx}")
 
 if __name__ == "__main__":
     # --- 自動路徑處理 ---
