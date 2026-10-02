@@ -1,6 +1,6 @@
 # PSO + Bagging for binary and multi-class classification
 
-以 Naive Bayes 作為基礎分類器，結合 Particle Swarm Optimization (PSO) 與 Bootstrap Aggregating (Bagging) 進行二類別與多類別資料集的實驗評估。目的是比較在離散化資料上，PSO 優化的簡易貝氏模型與 Bagging 版本的分類效果，並輸出各資料集的交叉驗證結果與模型資訊。
+以 Naive Bayes 作為基礎分類器，結合 Particle Swarm Optimization (PSO) 與 Bootstrap Aggregating (Bagging) 進行二類別與多類別資料集的實驗評估。目的是比較PSO 優化的簡易貝氏模型與 Bagging 的分類效果，並輸出各資料集的交叉驗證結果與模型資訊。
 
 ## 專案簡介
 
@@ -10,8 +10,6 @@
 - 實驗輸出：記錄每個 fold 的訓練準確率、測試結果與時間，並將模型與結果儲存到檔案中。
 
 ## 目前專案內容
-
-此 repo 目前的核心檔案如下：
 
 - `config.py`：集中管理實驗參數，例如交叉驗證 fold 數、基本模型數、PSO 超參數與資料集清單。
 - `data_preprocessing.py`：將 `datasets/原始資料集` 中的 CSV 檔做等寬離散化，輸出到 `datasets/離散化資料集`。
